@@ -1,1 +1,615 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-method="none">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="Prompt Alchemist — upload any reference image, extract its soul as an image-generation prompt, then rebuild it with your own face.">
+<meta name="theme-color" content="#07070A">
+<title>Prompt Alchemist — Transmute an image into a prompt</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307070A'/%3E%3Cpath d='M16 5l7 12H9z' fill='none' stroke='%23FF9A3C' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M9 17h14l-3 10H12z' fill='none' stroke='%23FF9A3C' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
 
+<!-- ══════════════════════════════════════════════════════════════════
+     PAGE-LOAD CURTAIN — lifts away once the app has booted
+     ══════════════════════════════════════════════════════════════════ -->
+<div class="curtain" id="curtain" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<!-- Slim scroll-progress bar (accent coloured, pinned to the viewport top) -->
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+<!-- Generative background: particle field + connecting threads -->
+<canvas id="bgCanvas" class="bg-canvas" aria-hidden="true"></canvas>
+<!-- SVG feTurbulence grain, layered over everything at very low opacity -->
+<div class="grain" aria-hidden="true"></div>
+<!-- Soft volumetric glow that follows the pointer -->
+<div class="pointer-glow" id="pointerGlow" aria-hidden="true"></div>
+
+<!-- Custom cursor (desktop / fine pointer only) -->
+<div class="cursor-dot" id="cursorDot" aria-hidden="true"></div>
+<div class="cursor-ring" id="cursorRing" aria-hidden="true"></div>
+
+<a class="skip-link" href="#forge">Skip to the forge</a>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     HEADER
+     ══════════════════════════════════════════════════════════════════ -->
+<header class="site-head" id="siteHead">
+  <a class="brand" href="#forge" aria-label="Prompt Alchemist — home">
+    <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+      <path class="bm-a" d="M20 4l9 15H11z"/>
+      <path class="bm-b" d="M11 19h18l-3.4 14H14.4z"/>
+      <circle class="bm-c" cx="20" cy="26" r="2.4"/>
+    </svg>
+    <span class="brand-word">Prompt <em>Alchemist</em></span>
+  </a>
+
+  <nav class="head-nav" aria-label="Sections">
+    <a href="#method">Method</a>
+    <a href="#altar">Upload</a>
+    <a href="#artifact">Artifact</a>
+    <a href="#archive">Archive</a>
+  </nav>
+
+  <div class="head-tools">
+    <span class="health-chip" id="healthChip" title="Live count of healthy API channels">
+      <i class="hc-dot" aria-hidden="true"></i><span id="healthChipText">— channels</span>
+    </span>
+    <button class="icon-btn" id="keysBtn" type="button" aria-haspopup="dialog" aria-label="Bring your own API key">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="15.5" r="4.5"/><path d="M12 12l8-8M17.5 6.5l2 2M15 9l2 2"/></svg>
+      <span class="ib-label">Key</span>
+    </button>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="Switch to Daylight Lab theme" aria-pressed="false">
+      <svg class="ic-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg>
+      <svg class="ic-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ACT I — THE FORGE (hero)
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="act act-hero" id="forge" data-act="1">
+    <div class="hero-inner">
+      <p class="eyebrow" data-reveal>
+        <span class="eyebrow-glyph" aria-hidden="true">⚗</span> Reference&nbsp;image → prompt → your face
+      </p>
+
+      <!-- Title characters are split into spans by app.js for the reveal -->
+      <h1 class="hero-title" id="heroTitle" data-reveal>Prompt Alchemist</h1>
+
+      <p class="hero-sub" data-reveal>
+        Upload any image. Extract its soul as a prompt. Rebuild it with your own face.
+      </p>
+
+      <div class="hero-cta" data-reveal>
+        <button class="btn btn-primary magnetic" id="heroCta" type="button">
+          <span class="btn-glow" aria-hidden="true"></span>
+          <span class="btn-label">Enter the forge</span>
+          <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <a class="btn btn-ghost" href="#method">Compare the three methods</a>
+      </div>
+
+      <ul class="hero-stats" data-reveal>
+        <li><b id="statMethods">3</b><span>methodologies</span></li>
+        <li><b id="statChannels">0</b><span>API channels</span></li>
+        <li><b id="statForged">0</b><span>kept in your archive</span></li>
+      </ul>
+    </div>
+
+    <button class="scroll-cue" id="scrollCue" type="button" aria-label="Scroll to choose a methodology">
+      <span class="cue-text">Scroll</span>
+      <span class="cue-line" aria-hidden="true"></span>
+    </button>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ACT II — CHOOSE YOUR METHODOLOGY
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="act" id="method" data-act="2" aria-labelledby="methodTitle">
+    <header class="act-head">
+      <span class="act-num" aria-hidden="true">II</span>
+      <h2 id="methodTitle" data-reveal>Choose your <span class="ink">methodology</span></h2>
+      <p class="act-lede" data-reveal>
+        Three ways to interrogate an image. Each one sends a different instruction to the vision
+        model — and each returns a prompt with a different shape. Pick one; the whole forge
+        changes colour around it.
+      </p>
+    </header>
+
+    <div class="method-grid" id="methodGrid" role="radiogroup" aria-label="Prompt methodology">
+
+      <!-- ── IWP ─────────────────────────────────────────────────── -->
+      <article class="method-card" data-method="IWP" role="radio" aria-checked="false" tabindex="0"
+               data-accent="#FF9A3C" data-name="Imperative Weighted Prompting"
+               data-tagline="Terse directives, numerically weighted. Maximum control, minimum prose.">
+        <span class="mc-shine" aria-hidden="true"></span>
+        <div class="mc-top">
+          <span class="mc-code">IWP</span>
+          <span class="mc-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 12.8l5.2 5.2L20 7"/></svg>
+          </span>
+        </div>
+        <svg class="mc-glyph" viewBox="0 0 120 120" aria-hidden="true">
+          <!-- weighted scale / slider stack -->
+          <g class="g-draw">
+            <path d="M60 18v84"/>
+            <path d="M22 42h76"/>
+            <path d="M22 42l-10 22h20z"/>
+            <path d="M98 42l-10 22h20z"/>
+            <path d="M40 78h44"/>
+            <circle cx="52" cy="78" r="6"/>
+            <path d="M40 94h44"/>
+            <circle cx="72" cy="94" r="6"/>
+          </g>
+        </svg>
+        <h3 class="mc-name">Imperative<br><span>Weighted Prompting</span></h3>
+        <p class="mc-tag">Terse directives, numerically weighted. Maximum control, minimum prose.</p>
+        <button class="mc-more" type="button" aria-expanded="false" aria-controls="more-IWP">
+          What is this? <span aria-hidden="true">+</span>
+        </button>
+        <div class="mc-more-body" id="more-IWP" hidden>
+          <p>The model is ordered, not asked. Every concept arrives as a command with a number
+             attached, so the weight of each idea is explicit and tunable.</p>
+          <pre class="mc-sample">crimson rim light (1.4), 35mm, shallow depth (1.2),
+wet asphalt reflections (0.9) --ar 2:3 --style raw</pre>
+        </div>
+        <span class="mc-status" data-loaded></span>
+      </article>
+
+      <!-- ── NLDP ────────────────────────────────────────────────── -->
+      <article class="method-card" data-method="NLDP" role="radio" aria-checked="false" tabindex="-1"
+               data-accent="#22D3C5" data-name="Natural Language Descriptive Prompting"
+               data-tagline="A cinematic paragraph. The image described as a story a camera could shoot.">
+        <span class="mc-shine" aria-hidden="true"></span>
+        <div class="mc-top">
+          <span class="mc-code">NLDP</span>
+          <span class="mc-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 12.8l5.2 5.2L20 7"/></svg>
+          </span>
+        </div>
+        <svg class="mc-glyph" viewBox="0 0 120 120" aria-hidden="true">
+          <!-- flowing ink ribbon -->
+          <g class="g-draw">
+            <path d="M16 84C34 84 34 40 52 40s18 44 36 44 20-30 20-30"/>
+            <path d="M16 96c20 0 22-30 40-30s20 22 34 22"/>
+            <path d="M92 22l12 12-30 30-14 4 4-14z"/>
+          </g>
+        </svg>
+        <h3 class="mc-name">Natural Language<br><span>Descriptive Prompting</span></h3>
+        <p class="mc-tag">A cinematic paragraph. The image described as a story a camera could shoot.</p>
+        <button class="mc-more" type="button" aria-expanded="false" aria-controls="more-NLDP">
+          What is this? <span aria-hidden="true">+</span>
+        </button>
+        <div class="mc-more-body" id="more-NLDP" hidden>
+          <p>The model is asked to narrate. Light, lens, weather and mood come back as flowing
+             sentences, which diffusion models handle with surprising subtlety.</p>
+          <pre class="mc-sample">A lone figure waits on a rain-slick platform at dusk;
+low sodium light blooms through the haze, 50mm, film grain…</pre>
+        </div>
+        <span class="mc-status" data-loaded></span>
+      </article>
+
+      <!-- ── SSP ─────────────────────────────────────────────────── -->
+      <article class="method-card" data-method="SSP" role="radio" aria-checked="false" tabindex="-1"
+               data-accent="#B18CFF" data-name="Structured Schema Prompting"
+               data-tagline="A machine-readable blueprint. Every attribute its own labelled field.">
+        <span class="mc-shine" aria-hidden="true"></span>
+        <div class="mc-top">
+          <span class="mc-code">SSP</span>
+          <span class="mc-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 12.8l5.2 5.2L20 7"/></svg>
+          </span>
+        </div>
+        <svg class="mc-glyph" viewBox="0 0 120 120" aria-hidden="true">
+          <!-- nested bracket / node lattice -->
+          <g class="g-draw">
+            <path d="M38 20H26a6 6 0 00-6 6v26l-8 8 8 8v26a6 6 0 006 6h12"/>
+            <path d="M82 20h12a6 6 0 016 6v26l8 8-8 8v26a6 6 0 01-6 6H82"/>
+            <circle cx="60" cy="60" r="9"/>
+            <path d="M60 51V30M60 69v21M51 60H36M69 60h15"/>
+            <circle cx="60" cy="26" r="4"/><circle cx="60" cy="94" r="4"/>
+            <circle cx="32" cy="60" r="4"/><circle cx="88" cy="60" r="4"/>
+          </g>
+        </svg>
+        <h3 class="mc-name">Structured<br><span>Schema Prompting</span></h3>
+        <p class="mc-tag">A machine-readable blueprint. Every attribute its own labelled field.</p>
+        <button class="mc-more" type="button" aria-expanded="false" aria-controls="more-SSP">
+          What is this? <span aria-hidden="true">+</span>
+        </button>
+        <div class="mc-more-body" id="more-SSP" hidden>
+          <p>The model fills a form. Lighting, lens, palette, composition and mood each get their
+             own field, which makes the result trivial to edit by hand.</p>
+          <pre class="mc-sample">{
+  "subject": "figure at window",
+  "key_light": "north window, 5600K",
+  "lens": "85mm f/1.8",
+  "mood": "quiet, contemplative"
+}</pre>
+        </div>
+        <span class="mc-status" data-loaded></span>
+      </article>
+    </div>
+
+    <p class="method-hint" id="methodHint" data-reveal>
+      <kbd>←</kbd><kbd>→</kbd> to move between cards, <kbd>Enter</kbd> to select. Your choice is
+      remembered on this device.
+    </p>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ACT III — THE UPLOAD ALTAR
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="act" id="altar" data-act="3" aria-labelledby="altarTitle">
+    <header class="act-head">
+      <span class="act-num" aria-hidden="true">III</span>
+      <h2 id="altarTitle" data-reveal>Offer an image <span class="ink">to the altar</span></h2>
+      <p class="act-lede" data-reveal>
+        Drop a file, paste from the clipboard with <kbd>Ctrl</kbd>+<kbd>V</kbd>, or point at a URL.
+        The image never leaves your browser until you press Transmute — and even then it is
+        downscaled first.
+      </p>
+    </header>
+
+    <div class="altar-wrap" data-reveal>
+      <div class="dropzone" id="dropzone" tabindex="0" role="button"
+           aria-label="Upload an image. Drag and drop, click to browse, or paste from the clipboard.">
+        <svg class="dz-border" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <rect x="1" y="1" width="98" height="98" rx="3"/>
+        </svg>
+        <div class="dz-empty" id="dzEmpty">
+          <svg class="dz-icon" viewBox="0 0 64 64" aria-hidden="true">
+            <path class="g-draw" d="M8 44l14-18 10 12 8-9 16 19z"/>
+            <circle class="g-draw" cx="20" cy="20" r="6"/>
+            <path class="g-draw" d="M32 56V36M24 44l8-8 8 8"/>
+          </svg>
+          <p class="dz-title">Drop the reference image here</p>
+          <p class="dz-sub">or <span class="linkish">browse your files</span> · <span class="linkish">paste</span> · JPG, PNG, WebP, AVIF up to 15&nbsp;MB</p>
+        </div>
+
+        <figure class="dz-preview" id="dzPreview" hidden>
+          <canvas class="dz-canvas" id="dzCanvas" aria-label="Preview of the optimised reference image"></canvas>
+          <div class="dz-scan" id="dzScan" aria-hidden="true"></div>
+          <figcaption class="dz-meta">
+            <span id="dzMetaName">image</span>
+            <span class="dot" aria-hidden="true">·</span>
+            <span id="dzMetaSize">—</span>
+          </figcaption>
+          <div class="dz-actions">
+            <button class="btn btn-mini" type="button" id="replaceBtn">Replace</button>
+            <button class="btn btn-mini btn-danger" type="button" id="removeBtn">Remove</button>
+          </div>
+        </figure>
+
+        <input type="file" id="fileInput" accept="image/*" hidden>
+      </div>
+
+      <form class="url-row" id="urlForm">
+        <label class="sr-only" for="urlInput">Image URL</label>
+        <input class="field" id="urlInput" type="url" inputmode="url" placeholder="…or paste an image URL" autocomplete="off">
+        <button class="btn btn-mini" type="submit" id="urlFetchBtn">Fetch</button>
+      </form>
+      <p class="micro-note" id="urlNote">
+        Some hosts block cross-origin reads. If the fetch fails, right-click the image, save it,
+        and drop the file instead.
+      </p>
+
+      <div class="inline-error" id="uploadError" role="alert" hidden></div>
+    </div>
+
+    <div class="altar-actions" data-reveal>
+      <button class="btn btn-primary magnetic" id="transmuteBtn" type="button">
+        <span class="btn-glow" aria-hidden="true"></span>
+        <span class="btn-label">Transmute</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M6 10l6-6 6 6"/></svg>
+      </button>
+      <p class="micro-note" id="transmuteHint">Choose a methodology and an image to begin.</p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ACT V — THE ARTIFACT (result)
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="act" id="artifact" data-act="5" aria-labelledby="artifactTitle">
+    <header class="act-head">
+      <span class="act-num" aria-hidden="true">V</span>
+      <h2 id="artifactTitle" data-reveal>The <span class="ink">artifact</span></h2>
+      <p class="act-lede" data-reveal id="artifactLede">
+        Nothing forged yet. Your prompt will materialise here, character by character.
+      </p>
+    </header>
+
+    <div class="artifact-card" id="artifactCard" data-reveal hidden>
+      <div class="ac-head">
+        <span class="ac-badge" id="acBadge">IWP</span>
+        <span class="ac-prov" id="acProv">forged via —</span>
+        <div class="ac-head-actions">
+          <button class="icon-btn icon-btn-sm" type="button" id="acExpandBtn" aria-expanded="false"
+                  aria-label="Expand the artifact">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 20h5v-5M20 9V4h-5M4 15v5h5"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="ac-body" id="acBody">
+        <div class="ac-text" id="acText" tabindex="0" aria-label="Generated prompt"></div>
+        <span class="caret" id="acCaret" aria-hidden="true"></span>
+      </div>
+
+      <!-- DNA strip: a deterministic fingerprint of the prompt's token mix -->
+      <div class="ac-dna" id="acDna" aria-hidden="true" title="Prompt DNA — a fingerprint of the token mix"></div>
+
+      <div class="ac-actions" role="group" aria-label="Artifact actions">
+        <button class="btn btn-mini" type="button" id="copyBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h8"/></svg>
+          <span class="b-label">Copy</span>
+        </button>
+        <button class="btn btn-mini" type="button" id="downloadBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M4 20h16"/></svg>
+          <span class="b-label">.txt</span>
+        </button>
+        <button class="btn btn-mini" type="button" id="regenBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 11-2.3-5.6M20 4v5h-5"/></svg>
+          <span class="b-label">Regenerate</span>
+        </button>
+        <button class="btn btn-mini" type="button" id="swapMethodBtn" aria-haspopup="menu" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
+          <span class="b-label">Other method</span>
+        </button>
+        <button class="btn btn-mini" type="button" id="shareBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="6" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="18" r="2.6"/><path d="M8.4 10.8l7.2-3.6M8.4 13.2l7.2 3.6"/></svg>
+          <span class="b-label">Share</span>
+        </button>
+      </div>
+
+      <div class="swap-menu" id="swapMenu" role="menu" aria-label="Re-forge with another methodology" hidden>
+        <button type="button" role="menuitem" data-swap="IWP">IWP — imperative, weighted</button>
+        <button type="button" role="menuitem" data-swap="NLDP">NLDP — cinematic prose</button>
+        <button type="button" role="menuitem" data-swap="SSP">SSP — structured schema</button>
+      </div>
+    </div>
+
+    <!-- Coaching: what to do with the prompt next -->
+    <aside class="coach" id="coachPanel" data-reveal>
+      <h3>Next step</h3>
+      <p>
+        Take this prompt to any image generator — Midjourney, Flux, SDXL, Imagen, DALL·E — and
+        attach a clear, well-lit photo of your own face. The prompt carries the world; your photo
+        carries the person.
+      </p>
+      <label class="switch-row" for="suffixToggle">
+        <span>Append the identity-lock suffix when copying</span>
+        <input type="checkbox" id="suffixToggle" class="switch" role="switch" checked>
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+      </label>
+      <textarea class="field field-area" id="suffixText" rows="3" spellcheck="false"
+        aria-label="Identity-lock suffix, editable">Preserve the facial identity of the attached reference photo with high fidelity; apply the style, lighting, mood and composition described above.</textarea>
+      <div class="coach-actions">
+        <button class="btn btn-mini" type="button" id="copySuffixBtn">Copy prompt + suffix</button>
+        <button class="btn btn-mini btn-quiet" type="button" id="resetSuffixBtn">Reset wording</button>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ACT VI — THE ARCHIVE
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="act" id="archive" data-act="6" aria-labelledby="archiveTitle">
+    <header class="act-head act-head-row">
+      <div>
+        <span class="act-num" aria-hidden="true">VI</span>
+        <h2 id="archiveTitle" data-reveal>The <span class="ink">archive</span></h2>
+        <p class="act-lede" data-reveal>
+          Your last 15 transmutations, newest first. Stored in this browser only — never uploaded,
+          never synced.
+        </p>
+      </div>
+      <div class="archive-tools" data-reveal>
+        <span class="archive-count" id="archiveCount">0 / 15</span>
+        <button class="btn btn-mini btn-danger" type="button" id="clearArchiveBtn">Clear archive</button>
+      </div>
+    </header>
+
+    <div class="archive-rail" id="archiveRail" tabindex="0" role="list"
+         aria-label="Archive of generated prompts"></div>
+
+    <div class="archive-empty" id="archiveEmpty" data-reveal>
+      <svg viewBox="0 0 160 120" aria-hidden="true">
+        <g class="g-draw">
+          <path d="M28 96V54a8 8 0 018-8h88a8 8 0 018 8v42"/>
+          <path d="M20 96h120"/>
+          <path d="M44 46V30a8 8 0 018-8h56a8 8 0 018 8v16"/>
+          <path d="M60 70h40M60 82h26"/>
+          <circle cx="132" cy="34" r="10"/>
+          <path d="M139 41l7 7"/>
+        </g>
+      </svg>
+      <p>Nothing forged yet. Your last 15 transmutations will live here.</p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ACT VII — FOOTER
+       ════════════════════════════════════════════════════════════════ -->
+  <footer class="site-foot" id="foot" data-act="7">
+    <div class="foot-steps" data-reveal>
+      <h3>How it works</h3>
+      <ol class="steps">
+        <li>
+          <svg viewBox="0 0 64 64" aria-hidden="true"><g class="g-draw">
+            <rect x="10" y="16" width="44" height="32" rx="4"/><path d="M10 26h44"/>
+            <path d="M22 38l8 8 14-14"/></g></svg>
+          <b>1 · Capture</b><span>Drop, paste or fetch the image whose look you love.</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 64 64" aria-hidden="true"><g class="g-draw">
+            <path d="M32 8l10 18H22z"/><path d="M22 26h20l-4 26H26z"/>
+            <path d="M18 34h-6M52 34h-6"/></g></svg>
+          <b>2 · Transmute</b><span>A vision model reads the image under your chosen methodology.</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 64 64" aria-hidden="true"><g class="g-draw">
+            <circle cx="24" cy="22" r="8"/><path d="M10 50c0-8 6-13 14-13s14 5 14 13"/>
+            <path d="M44 20h12M50 14v12"/></g></svg>
+          <b>3 · Rebuild</b><span>Feed the prompt plus your own face to any image generator.</span>
+        </li>
+      </ol>
+    </div>
+
+    <div class="foot-cols">
+      <div class="foot-col">
+        <h4>Prompt Alchemist</h4>
+        <p>A static, dependency-free forge for turning reference images into generation prompts.
+           No account, no server, no telemetry.</p>
+        <a class="linkish" id="repoLink" href="https://github.com/" rel="noopener" target="_blank">View the repository →</a>
+      </div>
+      <div class="foot-col">
+        <h4>About the keys</h4>
+        <p>Any key committed to a public GitHub Pages repo is <strong>publicly visible</strong>.
+           Use throwaway keys with hard spend caps and referrer restrictions — or press
+           <button class="linkish" type="button" id="footKeysBtn">Key</button> to use your own,
+           which stays in this browser's <code>localStorage</code> and is tried first.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Channels</h4>
+        <p class="foot-health"><span class="health-chip" id="healthChipFoot"><i class="hc-dot" aria-hidden="true"></i><span id="healthChipFootText">—</span></span></p>
+        <p>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> for the relay log.</p>
+      </div>
+    </div>
+
+    <div class="foot-base">
+      <span id="footYear">© Prompt Alchemist</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <span>Built with vanilla HTML, CSS and JavaScript. Zero dependencies.</span>
+    </div>
+  </footer>
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     ACT IV — TRANSMUTATION OVERLAY (the showpiece)
+     ══════════════════════════════════════════════════════════════════ -->
+<div class="overlay" id="transmuteOverlay" role="dialog" aria-modal="true"
+     aria-labelledby="tmTitle" hidden>
+  <div class="ov-stage">
+    <div class="ov-image-wrap" id="ovImageWrap">
+      <img class="ov-image" id="ovImage" alt="The reference image being analysed">
+      <canvas class="ov-dissolve" id="ovDissolve" aria-hidden="true"></canvas>
+      <div class="ov-scanline" id="ovScanline" aria-hidden="true"></div>
+      <div class="ov-reticles" id="ovReticles" aria-hidden="true">
+        <span class="ret tl"></span><span class="ret tr"></span><span class="ret bl"></span><span class="ret br"></span>
+      </div>
+      <svg class="ov-brackets" viewBox="0 0 200 200" preserveAspectRatio="none" aria-hidden="true">
+        <g id="ovBracketGroup"></g>
+      </svg>
+      <div class="ov-telemetry" id="ovTelemetry" aria-hidden="true"></div>
+    </div>
+
+    <canvas class="ov-crucible" id="ovCrucible" aria-hidden="true"></canvas>
+
+    <div class="ov-glyph" id="ovGlyph" aria-hidden="true"></div>
+
+    <div class="ov-readout">
+      <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="ring-bg" cx="60" cy="60" r="52"/>
+        <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52"/>
+      </svg>
+      <span class="ring-pct" id="ringPct">0%</span>
+      <h2 id="tmTitle">Transmuting</h2>
+      <p class="ov-status" id="ovStatus">Choosing a channel…</p>
+      <button class="btn btn-mini btn-quiet" type="button" id="cancelBtn">Cancel transmutation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     DEBUG DRAWER (Ctrl+Shift+D)
+     ══════════════════════════════════════════════════════════════════ -->
+<aside class="debug-drawer" id="debugDrawer" role="dialog" aria-label="Relay debug drawer"
+       aria-modal="false" hidden>
+  <header class="dd-head">
+    <b>Relay log</b>
+    <div class="dd-tools">
+      <label class="dd-label" for="ddForce">Force provider</label>
+      <select class="dd-select" id="ddForce">
+        <option value="auto">auto</option>
+        <option value="gemini">gemini</option>
+        <option value="openai">openai</option>
+      </select>
+      <button class="btn btn-mini" type="button" id="ddClear">Clear</button>
+      <button class="icon-btn icon-btn-sm" type="button" id="ddClose" aria-label="Close relay log">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="dd-body" id="ddBody"></div>
+  <footer class="dd-foot">
+    <span id="ddKeys">keys: —</span>
+    <span class="dot" aria-hidden="true">·</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> toggles</span>
+  </footer>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     TOASTS + MODALS + ARCHIVE VIEWER
+     ══════════════════════════════════════════════════════════════════ -->
+<div class="toast-stack" id="toastStack" role="status" aria-live="polite"></div>
+
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 id="modalTitle">Confirm</h3>
+    <p id="modalBody">Are you sure?</p>
+    <div class="modal-actions">
+      <button class="btn btn-mini btn-quiet" type="button" id="modalCancel">Cancel</button>
+      <button class="btn btn-mini btn-danger" type="button" id="modalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="keysBackdrop" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="keysTitle">
+    <h3 id="keysTitle">Use your own key</h3>
+    <p class="modal-lede">
+      Stored only in this browser's <code>localStorage</code>. When present, your key is tried
+      <strong>first</strong>, before any key in the repository. Nothing is sent anywhere else.
+    </p>
+    <label class="field-label" for="ownGemini">Gemini API key</label>
+    <input class="field" id="ownGemini" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…">
+    <label class="field-label" for="ownOpenai">OpenAI API key</label>
+    <input class="field" id="ownOpenai" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+    <p class="micro-note">Never paste a key you care about into a shared machine.</p>
+    <div class="modal-actions">
+      <button class="btn btn-mini btn-danger" type="button" id="keysClear">Forget my keys</button>
+      <button class="btn btn-mini btn-quiet" type="button" id="keysClose">Close</button>
+      <button class="btn btn-mini btn-primary" type="button" id="keysSave">Save keys</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="viewerBackdrop" hidden>
+  <div class="modal modal-wide viewer" role="dialog" aria-modal="true" aria-labelledby="viewerTitle">
+    <button class="icon-btn viewer-close" type="button" id="viewerClose" aria-label="Close artifact">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="viewer-top">
+      <img class="viewer-thumb" id="viewerThumb" alt="">
+      <div>
+        <h3 id="viewerTitle">Artifact</h3>
+        <p class="viewer-meta" id="viewerMeta">—</p>
+      </div>
+    </div>
+    <div class="viewer-body" id="viewerBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-mini" type="button" id="viewerCopy">Copy</button>
+      <button class="btn btn-mini btn-primary" type="button" id="viewerReuse">Forge again with this image</button>
+    </div>
+  </div>
+</div>
+
+<script src="./app.js" defer></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a43c5c7c79d2fc58',t:'MTc5MDg2NzA4MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
