@@ -72,8 +72,8 @@ const API_CONFIG = {
     endpoint: (model, key) =>
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
     keys: [
-      'PASTE_GEMINI_KEY_1',
-      'PASTE_GEMINI_KEY_2',
+      'AQ.Ab8RN6JRKWV_HjW1HxxMFyUmFtDxuW4CW4U0a_4oXbbEU5QMxQ',
+      'AQ.Ab8RN6JRKWV_HjW1HxxMFyUmFtDxuW4CW4U0a_4oXbbEU5QMxQ',
       // 'PASTE_GEMINI_KEY_3',  ← add as many as you like
     ]
   },
